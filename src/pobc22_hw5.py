@@ -150,22 +150,22 @@ def check_stp(outdir=None):
 
     # setup synapses
 
-    # TODO: define the synapse model here. At every presynaptic
-    # spike, increase I_post by the current synaptic efficacy.
-
     syn_eqs = '''
     w : ampere
     U : 1
     tau_fac : second
     tau_rec : second
-    ...
+    
+    du/dt = - u / tau_fac : 1 (clock-driven)
+    dz/dt = - z / tau_rec : 1 (clock-driven)
     '''
 
     on_pre = '''
-    ...
+    u += U * (1 - u) * 1
+    w = w0 * (1 - z) * u
+    z += (1 - z) * u * 1
+    I += w
     '''
-
-    # TODO end
 
     synapses = Synapses(inputs, neuron_post, syn_eqs, on_pre=on_pre, method='exact')
     synapses.connect()
@@ -732,14 +732,14 @@ if __name__ == '__main__':
 
     # run the lsm and record all spikes
 
-    lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
+    # lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
 
     # use the generated data to train and test readouts for the different tasks
 
-    lsm_experiment(task='xor', simulate=False, outdir=outdir, title='xor')
-
-    lsm_experiment(task='mem1', simulate=False, outdir=outdir, title='mem1')
-
-    lsm_experiment(task='memall', simulate=False, outdir=outdir, title='memall')
+    # lsm_experiment(task='xor', simulate=False, outdir=outdir, title='xor')
+    #
+    # lsm_experiment(task='mem1', simulate=False, outdir=outdir, title='mem1')
+    #
+    # lsm_experiment(task='memall', simulate=False, outdir=outdir, title='memall')
 
     plt.show()  # avoid having multiple plt.show()s in your code
