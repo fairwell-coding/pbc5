@@ -432,23 +432,52 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
 
         # setup synapses
 
-        # TODO: use the same model here as in check_stp() (but use
-        # event-driven updates here if you didn't do it already), wire
-        # the circuit as specified in the assigment sheet
+        syn_eqs = '''
+        w : ampere
+        U : 1
+        tau_fac : second
+        tau_rec : second
 
-        syn_eqs = ...
+        du/dt = - u / tau_fac : 1 (event-driven)
+        dz/dt = - z / tau_rec : 1 (event-driven)
+        '''
 
-        on_pre = ...
+        on_pre = '''
+        u += U * (1 - u) * 1
+        w = w0 * (1 - z) * u
+        z += (1 - z) * u * 1
+        I += w
+        
+        w = clip(w - pA*Apost, 0*pA, w_max)
+        
+        
+        '''
 
-        syn_in = ...
-        ... # set the synapse parameters
+        syn_in = Synapses(inputs, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
+        syn_in.connect(i=0, j=np.random.randint(0, N_E - 1, 200))
+        syn_in.connect(i=1, j=np.random.randint(0, N_E - 1, 200))
+        syn_in.connect(i=2, j=np.random.randint(0, N_E - 1, 200))
+        syn_in.w = np.clip(np.random.normal(J_input, 0.7 * J_input), a_min=0, a_max=None) * pA
 
-        syn_EE = ...
-        syn_EI = ...
-        syn_IE = ...
-        syn_II = ...
+        syn_EE = Synapses(neurons_exc, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
+        for j in np.arange(0, N_E):
+            syn_EE.connect(i=np.random.randint(0, N_E - 1, C_E), j=j)
+        syn_EE.w = np.clip(np.random.normal(J_EE, 0.7 * J_EE), a_min=0, a_max=None) * pA
 
-        # TODO end
+        syn_EI = Synapses(neurons_exc, neurons_inh, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
+        for j in np.arange(0, N_I):
+            syn_EI.connect(i=np.random.randint(0, N_E - 1, C_E), j=j)
+        syn_EI.w = np.clip(np.random.normal(J_EI, 0.7 * J_EI), a_min=0, a_max=None) * pA
+
+        syn_IE = Synapses(neurons_inh, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
+        for j in np.arange(0, N_E):
+            syn_IE.connect(i=np.random.randint(0, N_I - 1, C_I), j=j)
+        syn_IE.w = np.clip(np.random.normal(J_IE, -0.7 * J_IE), a_min=None, a_max=0) * pA
+
+        syn_II = Synapses(neurons_inh, neurons_inh, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
+        for j in np.arange(0, N_I):
+            syn_II.connect(i=np.random.randint(0, N_I - 1, C_I), j=j)
+        syn_II.w = np.clip(np.random.normal(J_II, -0.7 * J_II), a_min=None, a_max=0) * pA
 
         # background input
 
@@ -732,7 +761,7 @@ if __name__ == '__main__':
 
     # run the lsm and record all spikes
 
-    # lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
+    lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
 
     # use the generated data to train and test readouts for the different tasks
 
