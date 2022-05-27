@@ -432,6 +432,8 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
 
         # setup synapses
 
+        w0 = 100 * pA
+
         syn_eqs = '''
         w : ampere
         U : 1
@@ -448,36 +450,53 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
         z += (1 - z) * u * 1
         I += w
         
-        w = clip(w - pA*Apost, 0*pA, w_max)
-        
-        
         '''
+
+        # w = clip(w - pA*Apost, 0*pA, w_max)
+        tau_fac = 5 * ms
+        tau_rec = 5 * ms
+        # np.random.uniform(5, 20) * ms
 
         syn_in = Synapses(inputs, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
         syn_in.connect(i=0, j=np.random.randint(0, N_E - 1, 200))
         syn_in.connect(i=1, j=np.random.randint(0, N_E - 1, 200))
         syn_in.connect(i=2, j=np.random.randint(0, N_E - 1, 200))
-        syn_in.w = np.clip(np.random.normal(J_input, 0.7 * J_input), a_min=0, a_max=None) * pA
+        syn_in.w = np.clip(np.random.normal(J_input, 0.7 * J_input, size=600), a_min=0, a_max=None) * pA
+        syn_in.U = 0.1
+        syn_in.tau_fac = 100 * ms
+        syn_in.tau_rec = 5 * ms
 
         syn_EE = Synapses(neurons_exc, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
         for j in np.arange(0, N_E):
             syn_EE.connect(i=np.random.randint(0, N_E - 1, C_E), j=j)
-        syn_EE.w = np.clip(np.random.normal(J_EE, 0.7 * J_EE), a_min=0, a_max=None) * pA
+        syn_EE.w = np.clip(np.random.normal(J_EE, 0.7 * J_EE, size=C_E * N_E), a_min=0, a_max=None) * pA
+        syn_EE.U = 0.1
+        syn_EE.tau_fac = 100 * ms
+        syn_EE.tau_rec = 5 * ms
 
         syn_EI = Synapses(neurons_exc, neurons_inh, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
         for j in np.arange(0, N_I):
             syn_EI.connect(i=np.random.randint(0, N_E - 1, C_E), j=j)
-        syn_EI.w = np.clip(np.random.normal(J_EI, 0.7 * J_EI), a_min=0, a_max=None) * pA
+        syn_EI.w = np.clip(np.random.normal(J_EI, 0.7 * J_EI, size=C_E * N_I), a_min=0, a_max=None) * pA
+        syn_EI.U = 0.5
+        syn_EI.tau_fac = 5 * ms
+        syn_EI.tau_rec = 100 * ms
 
         syn_IE = Synapses(neurons_inh, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
         for j in np.arange(0, N_E):
             syn_IE.connect(i=np.random.randint(0, N_I - 1, C_I), j=j)
-        syn_IE.w = np.clip(np.random.normal(J_IE, -0.7 * J_IE), a_min=None, a_max=0) * pA
+        syn_IE.w = np.clip(np.random.normal(J_IE, -0.7 * J_IE, size=C_I * N_E), a_min=None, a_max=0) * pA
+        syn_IE.U = 0.1
+        syn_IE.tau_fac = 100 * ms
+        syn_IE.tau_rec = 5 * ms
 
         syn_II = Synapses(neurons_inh, neurons_inh, syn_eqs, on_pre, delay=np.random.uniform(1, 3) * ms)
         for j in np.arange(0, N_I):
             syn_II.connect(i=np.random.randint(0, N_I - 1, C_I), j=j)
-        syn_II.w = np.clip(np.random.normal(J_II, -0.7 * J_II), a_min=None, a_max=0) * pA
+        syn_II.w = np.clip(np.random.normal(J_II, -0.7 * J_II, size=C_I * N_I), a_min=None, a_max=0) * pA
+        syn_II.U = 0.5
+        syn_II.tau_fac = 5 * ms
+        syn_II.tau_rec = 100 * ms
 
         # background input
 
