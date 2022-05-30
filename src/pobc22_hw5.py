@@ -340,14 +340,14 @@ def train_readouts(spike_trains, targets, readout_times, *, num_discard=5, num_r
         print('  test error mean: {0:.3f}, std: {1:.3f}'.format(test_mean, test_std))
 
         train_error['mean'] += [train_mean]
-        train_error['std'] += [train_mean]
+        train_error['std'] += [train_std]
         test_error['mean'] += [test_mean]
-        test_error['std'] += [test_mean]
+        test_error['std'] += [test_std]
 
     return train_error, test_error
 
 
-def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
+def lsm_experiment(task, simulate=True, reg_factors=[1], outdir=None, title='', extra_delay=0):
     """
     Perform an LSM experiment.
 
@@ -451,11 +451,6 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
         
         '''
 
-        # R = 1 - z
-        # u += U * (1 - u) * 1
-        # I += w * R * u
-        # z += R * u * 1
-
         syn_in = Synapses(inputs, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
         syn_in.connect(i=0, j=np.random.randint(0, N_E - 1, 200))
         syn_in.connect(i=1, j=np.random.randint(0, N_E - 1, 200))
@@ -468,7 +463,7 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
         syn_EE = Synapses(neurons_exc, neurons_exc, syn_eqs, on_pre, delay=np.random.uniform(5, 20) * ms)
         for j in np.arange(0, N_E):
             syn_EE.connect(i=np.random.randint(0, N_E - 1, C_E), j=j)
-        syn_EE.w = np.clip(np.random.normal(J_EE, 0.7 * J_EE, size= C_E * N_E), a_min=0, a_max=None) * pA
+        syn_EE.w = np.clip(np.random.normal(J_EE, 0.7 * J_EE, size=C_E * N_E), a_min=0, a_max=None) * pA
         syn_EE.U = 0.59
         syn_EE.tau_fac = 1 * ms
         syn_EE.tau_rec = 813 * ms
@@ -632,24 +627,20 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
     num_input = data['simulation']['num_input']  # number of input units
     inputs = data['inputs']['bits']  # shape: (sample, num_input)
 
-    # TODO: define targets
-
     if task == 'xor':
-        targets = ...
+        targets = np.logical_xor(inputs[:, 0], inputs[:, 1])
 
     elif task == 'mem1':
-        targets = ...
+        targets = inputs[:, 0]
 
     elif task == 'memall':
-        targets = ...
+        targets = inputs[:, 2] + 2 * inputs[:, 1] + 4 * inputs[:, 0]
 
     elif task == 'sum':
-        targets = ...  # only needed for bonus task
+        targets = np.sum(inputs, axis=1)
 
     else:
         raise ValueError()
-
-    # TODO end
 
     assert len(targets) == inputs.shape[0]
 
@@ -673,7 +664,7 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
         rec_time_start = stim_dt + stim_len + readout_delay  # time of first liquid state
         readout_times = np.arange(rec_time_start, t_sim, stim_dt)
 
-        reg_factors = [1]
+        # reg_factors = [1]
 
         train_error, test_error = train_readouts(spike_trains, targets, readout_times, reg_factors=reg_factors)
 
@@ -705,9 +696,9 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
 
     elif task in ['mem1', 'memall']:
         if task == 'memall':
-            extra_readout_time = 0  # TODO: bonus task: change this to 250
+            extra_readout_time = extra_delay
         else:
-            extra_readout_time = 0
+            extra_readout_time = extra_delay
 
         readout_delays = np.arange(10, stim_dt - stim_len + 10 + extra_readout_time, 10)
 
@@ -720,7 +711,7 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
             rec_time_start = stim_dt + stim_len + readout_delay  # time of first liquid state
             readout_times = np.arange(rec_time_start, t_sim, stim_dt)
 
-            reg_factors = [1]
+            # reg_factors = [1]
 
             d_train_error, d_test_error = train_readouts(spike_trains, targets, readout_times, reg_factors=reg_factors)
 
@@ -758,13 +749,11 @@ def lsm_experiment(task, simulate=True, reg_fact=1, outdir=None, title=''):
     elif task == 'sum':
         input_spike_trains = data['inputs']['spike_trains']
 
-        # TODO: bonus task
-        #
-        # train readouts on spike trains from liquid and on input spike trains
+        readout_delay = 0
+        rec_time_start = stim_dt + stim_len + readout_delay
+        readout_times = np.arange(rec_time_start, t_sim, stim_dt)
 
-        ...
-
-        # TODO end
+        train_error, test_error = train_readouts(input_spike_trains, targets, readout_times, reg_factors=reg_factors)
 
 
 if __name__ == '__main__':
@@ -779,14 +768,26 @@ if __name__ == '__main__':
 
     # run the lsm and record all spikes
 
-    lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
+    # lsm_experiment(task=None, simulate=True, outdir=outdir, title='run')
 
     # use the generated data to train and test readouts for the different tasks
 
-    # lsm_experiment(task='xor', simulate=False, outdir=outdir, title='xor')
-    #
-    # lsm_experiment(task='mem1', simulate=False, outdir=outdir, title='mem1')
-    #
-    # lsm_experiment(task='memall', simulate=False, outdir=outdir, title='memall')
+    # task 5a
+    # lsm_experiment(task='xor', simulate=False, reg_factors=[0.01, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 50, 100], outdir=outdir, title='xor')  # default regularization param resulted in lowest test error
+    # mean
+
+    # task 5b
+    # lsm_experiment(task='mem1', simulate=False, reg_factors=[0.01, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 50, 100], outdir=outdir, title='mem1')
+
+    # task 5c
+    # lsm_experiment(task='mem1', simulate=False, reg_factors=[1], outdir=outdir, title='mem1')
+    # lsm_experiment(task='memall', simulate=False, reg_factors=[1], outdir=outdir, title='memall')
+
+    # task 5d
+    # lsm_experiment(task='mem1', simulate=False, reg_factors=[1], outdir=outdir, title='mem1', extra_delay=250)
+    # lsm_experiment(task='memall', simulate=False, reg_factors=[1], outdir=outdir, title='memall', extra_delay=250)
+
+    # task 5e
+    lsm_experiment(task='sum', simulate=False, reg_factors=[1], outdir=outdir, title='sum')
 
     plt.show()  # avoid having multiple plt.show()s in your code
